@@ -120,9 +120,11 @@
 				});
 				paths.push(path);
 			}
-
 			var count = 30;
-			var group = new Group(paths);
+			var group = new Group({
+				transformContent: true,
+				children: paths
+			});
 			var headGroup;
 			var eyePosition = new Point();
 			var eyeFollow = (Point.random() - 0.5);

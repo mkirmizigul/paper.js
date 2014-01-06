@@ -43,9 +43,8 @@ var Item = Base.extend(Callback, /** @lends Item# */{
 	},
 
 	_class: 'Item',
-	// All items apply their matrix by default.
-	// Exceptions are Raster, PlacedSymbol, Clip and Shape.
-	_transformContent: true,
+	// No item applies its matrix by default.
+	_transformContent: false,
 	_boundsSelected: false,
 	_selectChildren: false,
 	// Provide information about fields to be serialized, with their defaults
@@ -71,19 +70,20 @@ var Item = Base.extend(Callback, /** @lends Item# */{
 	_initialize: function(props, point) {
 		// Define this Item's unique id. But allow the creation of internally
 		// used paths with no ids.
-		var internal = props && props.internal === true;
+		var internal = props && props.internal === true,
+			matrix = this._matrix = new Matrix();
+			project = paper.project;
 		if (!internal)
 			this._id = Item._id = (Item._id || 0) + 1;
 		// Handle matrix before everything else, to avoid issues with
 		// #addChild() calling _changed() and accessing _matrix already.
-		var matrix = this._matrix = new Matrix();
 		if (point)
 			matrix.translate(point);
 		matrix._owner = this;
+		this._style = new Style(project._currentStyle, this);
 		// If _project is already set, the item was already moved into the DOM
 		// hierarchy. Used by Layer, where it's added to project.layers instead
 		if (!this._project) {
-			var project = paper.project;
 			// Do not insert into DOM if it's an internal path or
 			// props.insert is false.
 			if (internal || props && props.insert === false) {
@@ -94,7 +94,6 @@ var Item = Base.extend(Callback, /** @lends Item# */{
 				(project.activeLayer || new Layer()).addChild(this);
 			}
 		}
-		this._style = new Style(this._project._currentStyle, this);
 		return props ? this._set(props, { insert: true }) : true;
 	},
 
@@ -1151,7 +1150,7 @@ var Item = Base.extend(Callback, /** @lends Item# */{
 	},
 
 	setTransformContent: function(transform) {
-		this._transformContent = transform;
+		this._transformContent = !!transform;
 		if (transform)
 			this.applyMatrix();
 	},
@@ -1170,7 +1169,7 @@ var Item = Base.extend(Callback, /** @lends Item# */{
 	_setProject: function(project, installEvents) {
 		if (this._project !== project) {
 			// Uninstall events before switching project, then install them
-			// again.
+			// again. NOTE: _installEvents handles all children too!
 			if (this._project)
 				this._installEvents(false);
 			this._project = project;
@@ -1463,7 +1462,7 @@ var Item = Base.extend(Callback, /** @lends Item# */{
 		// meaning the default value has been overwritten (default is on
 		// prototype).
 		var keys = ['_locked', '_visible', '_blendMode', '_opacity',
-				'_clipMask', '_guide'];
+				'_clipMask', '_guide', '_transformContent'];
 		for (var i = 0, l = keys.length; i < l; i++) {
 			var key = keys[i];
 			if (this.hasOwnProperty(key))
@@ -1944,16 +1943,23 @@ var Item = Base.extend(Callback, /** @lends Item# */{
 			// Use the loop also to filter out wrong _type.
 			for (var i = items.length - 1; i >= 0; i--) {
 				var item = items[i];
-				if (_type && item._type !== _type)
+				if (_type && item._type !== _type) {
 					items.splice(i, 1);
-				else
+				} else {
 					item._remove(true);
+				}
 			}
 			Base.splice(children, items, index, 0);
+			var transformContent = this._transformContent;
 			for (var i = 0, l = items.length; i < l; i++) {
 				var item = items[i];
 				item._parent = this;
 				item._setProject(this._project, true);
+				// Only pass on the transformContent setting if it's different
+				// and the child has not its onw setting already.
+				if (item._transformContent ^ transformContent
+					&& !item.hasOwnProperty('_transformContent'))
+					item.setTransformContent(transformContent)
 				// Setting the name again makes sure all name lookup structures
 				// are kept in sync.
 				if (item._name)
@@ -2774,8 +2780,7 @@ var Item = Base.extend(Callback, /** @lends Item# */{
 
 	_applyMatrix: function(matrix, applyMatrix) {
 		var children = this._children;
-
-		if (children && children.length > 0) {
+		if (children) {
 			for (var i = 0, l = children.length; i < l; i++)
 				children[i].transform(matrix, applyMatrix);
 			return true;
