@@ -82,15 +82,37 @@ var CanvasView = View.extend(/** @lends CanvasView# */{
 	 *
 	 * @function
 	 */
-	update: function() {
-		if (!this._project._needsUpdate)
+	update: function(clear) {
+		if(clear === undefined)
+			clear = false;
+		if (!clear && !this._project._needsUpdate)
 			return false;
 		// Initial tests conclude that clearing the canvas using clearRect
 		// is always faster than setting canvas.width = canvas.width
 		// http://jsperf.com/clearrect-vs-setting-width/7
 		var ctx = this._context,
 			size = this._viewSize;
-		ctx.clearRect(0, 0, size.width + 1, size.height + 1);
+
+		// the canvas is cleared or fade out depending on persistence
+		if (!clear && this._persistence>0 && this._persistence<1)
+		{
+			var alpha =  1.0-this._persistence;
+			var temp = ctx.fillStyle;
+			ctx.fillStyle = 'rgba(0,0,0,' + alpha + ')';
+			ctx.fillRect(0,0, size.width + 1, size.height + 1);
+			ctx.fillStyle = temp;
+		}
+		else if (clear || this._persistence<=0)
+		{
+			ctx.clearRect(0, 0, size.width + 1, size.height + 1);
+		}
+		if (clear)
+		{
+			layers = this._project.layers
+			for (var i = 0, l = layers.length; i < l; i++)
+				layers[i].needsUpdate();
+		}
+
 		this._project.draw(ctx, this._matrix, this._ratio);
 		this._project._needsUpdate = false;
 		return true;

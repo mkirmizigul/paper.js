@@ -48,6 +48,7 @@ var Item = Base.extend(Callback, /** @lends Item# */{
 	_transformContent: true,
 	_boundsSelected: false,
 	_selectChildren: false,
+	_hasChanged: true,
 	// Provide information about fields to be serialized, with their defaults
 	// that can be ommited.
 	_serializeFields: {
@@ -212,6 +213,16 @@ var Item = Base.extend(Callback, /** @lends Item# */{
 		var symbol = this._parentSymbol,
 			cacheParent = this._parent || symbol,
 			project = this._project;
+
+		this._hasChanged = true;
+
+		var nextParent = cacheParent;
+		while(nextParent)
+		{
+			nextParent._hasChanged = true;
+			nextParent = nextParent._parent;
+		}
+
 		if (flags & /*#=*/ ChangeFlag.GEOMETRY) {
 			// Clear cached bounds and position whenever geometry changes
 			this._bounds = this._position = this._decomposed =
@@ -252,6 +263,17 @@ var Item = Base.extend(Callback, /** @lends Item# */{
 		// If this item is a symbol's definition, notify it of the change too
 		if (symbol)
 			symbol._changed(flags);
+	},
+
+	/**
+	 * Item needs update: set _hasChanged flag to true, notify every children as well 
+	 */
+	needsUpdate: function() {
+		this._hasChanged = true;
+		if (this._children) {
+			for (var i = 0, l = this._children.length; i < l; i++)
+				this._children[i].needsUpdate();
+		}
 	},
 
 	/**
@@ -3424,8 +3446,16 @@ var Item = Base.extend(Callback, /** @lends Item# */{
 	},
 
 	draw: function(ctx, param) {
-		if (!this._visible || this._opacity === 0)
+
+		if (!this._visible || this._opacity === 0 || this._hasChanged === false)
 			return;
+
+		if(this._symbol)
+			this._symbol._definition._hasChanged = true;
+
+		if(this._project && this._project.view && this._project.view._persistence > 0)
+			this._hasChanged = false;
+
 		// Each time the project gets drawn, it's _updateVersion is increased.
 		// Keep the _updateVersion of drawn items in sync, so we have an easy
 		// way to know for which selected items we need to draw selection info.

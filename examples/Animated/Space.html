@@ -6,15 +6,17 @@
 	<link rel="stylesheet" href="../css/style.css">
 	<script type="text/javascript" src="../../dist/paper.js"></script>
 	<script type="text/paperscript" canvas="canvas">
+
+	view.persistence = 0.9;
+
 	// The amount of symbol we want to place;
-	var count = 150;
+	var count = 100;
 
 	// Create a symbol, which we will use to place instances of later:
 	var path = new Path.Circle({
 		center: new Point(0, 0),
 		radius: 5,
-		fillColor: 'white',
-		strokeColor: 'black'
+		fillColor: 'white'
 	});
 
 	var symbol = new Symbol(path);

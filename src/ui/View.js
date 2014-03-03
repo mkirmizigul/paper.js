@@ -28,6 +28,7 @@ var View = Base.extend(Callback, /** @lends View# */{
 		this._scope = paper;
 		this._project = paper.project;
 		this._element = element;
+		this._persistence = 0;
 		var size;
 /*#*/ if (__options.environment == 'browser') {
 		// Generate an id for this view / element if it does not have one
@@ -304,6 +305,20 @@ var View = Base.extend(Callback, /** @lends View# */{
 			delta: delta
 		});
 		this._update();
+	},
+
+
+	/**
+	 * The persistence of the view. Items will be drawn only when they change if the persistence is greater than 0.
+	 * @type Number
+	 * @bean
+	 */
+	getPersistence: function() {
+		return this._persistence;
+	},
+
+	setPersistence: function(persistence) {
+		this._persistence = persistence;
 	},
 
 	/**
